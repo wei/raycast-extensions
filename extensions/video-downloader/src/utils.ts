@@ -3,11 +3,14 @@ import { formatDuration, intervalToDuration } from "date-fns";
 import validator from "validator";
 import { Format, Video } from "./types.js";
 import { existsSync } from "fs";
-import { execa } from "execa";
 import { execSync } from "child_process";
 
 export const isWindows = process.platform === "win32";
 export const isMac = process.platform === "darwin";
+
+function sanitizeWindowsPath(path: string): string {
+  return path.replace(/\r/g, "").replace(/\n/g, "").trim();
+}
 
 export const {
   downloadPath,
@@ -23,21 +26,22 @@ export const {
 
 export async function getWingetPath() {
   try {
-    const { stdout } = await execa("where", ["winget"]);
-    return stdout.trim().split("\n")[0];
+    const wingetPath = sanitizeWindowsPath(execSync("where winget").toString().trim());
+    return wingetPath.split("\n")[0];
   } catch {
     throw new Error("Winget not found. Please ensure winget is installed and available in your PATH.");
   }
 }
 
 export const getytdlPath = () => {
-  if (ytdlPathPreference && existsSync(ytdlPathPreference)) return ytdlPathPreference;
+  const cleanedYtdlPath = isWindows ? sanitizeWindowsPath(ytdlPathPreference || "") : ytdlPathPreference;
+  if (cleanedYtdlPath && existsSync(cleanedYtdlPath)) return cleanedYtdlPath;
 
   try {
     const defaultPath = isMac
       ? "/opt/homebrew/bin/yt-dlp"
       : isWindows
-        ? execSync("where yt-dlp").toString().trim().split("\n")[0]
+        ? sanitizeWindowsPath(execSync("where yt-dlp").toString().trim().split("\n")[0])
         : "/usr/bin/yt-dlp";
 
     return defaultPath;
@@ -47,13 +51,14 @@ export const getytdlPath = () => {
 };
 
 export const getffmpegPath = () => {
-  if (ffmpegPathPreference && existsSync(ffmpegPathPreference)) return ffmpegPathPreference;
+  const cleanedFfmpegPath = isWindows ? sanitizeWindowsPath(ffmpegPathPreference || "") : ffmpegPathPreference;
+  if (cleanedFfmpegPath && existsSync(cleanedFfmpegPath)) return cleanedFfmpegPath;
 
   try {
     const defaultPath = isMac
       ? "/opt/homebrew/bin/ffmpeg"
       : isWindows
-        ? execSync("where ffmpeg").toString().trim().split("\n")[0]
+        ? sanitizeWindowsPath(execSync("where ffmpeg").toString().trim().split("\n")[0])
         : "/usr/bin/ffmpeg";
 
     return defaultPath;
@@ -63,13 +68,15 @@ export const getffmpegPath = () => {
 };
 
 export const getffprobePath = () => {
-  if (ffprobePathPreference && existsSync(ffprobePathPreference)) return ffprobePathPreference;
+  const cleanedFfprobePath = isWindows ? sanitizeWindowsPath(ffprobePathPreference || "") : ffprobePathPreference;
+
+  if (cleanedFfprobePath && existsSync(cleanedFfprobePath)) return cleanedFfprobePath;
 
   try {
     const defaultPath = isMac
       ? "/opt/homebrew/bin/ffprobe"
       : isWindows
-        ? execSync("where ffprobe").toString().trim().split("\n")[0]
+        ? sanitizeWindowsPath(execSync("where ffprobe").toString().trim().split("\n")[0])
         : "/usr/bin/ffprobe";
     return defaultPath;
   } catch {
